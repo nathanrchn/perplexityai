@@ -30,7 +30,7 @@ class Perplexity:
         self.ws_thread: Thread = Thread(target=self.ws.run_forever).start()
         self.auth_session()
 
-        sleep(3)
+        sleep(1)
 
     def init_session(self) -> Session:
         session: Session = Session()
@@ -118,7 +118,6 @@ class Perplexity:
             query,
             {
                 "source": "default",
-                "token": "f864657",
                 "last_backend_uuid": None,
                 "read_write_token": "",
                 "conversational_enabled": True,
