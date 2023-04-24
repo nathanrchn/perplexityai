@@ -1,2 +1,2 @@
 # perplexityai
-A python api for the website perplexity.ai
+A python api to use perplexity.ai
