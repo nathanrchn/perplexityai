@@ -36,7 +36,7 @@ class Perplexity:
         session: Session = Session()
 
         uuid = str(uuid4())
-        session.get(url=f"https://www.perplexity.ai/search/{uuid}?s=e")
+        session.get(url=f"https://www.perplexity.ai/search/{uuid}?s=c")
 
         return session
 
