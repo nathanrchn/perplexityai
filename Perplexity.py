@@ -72,7 +72,6 @@ class Perplexity:
                     uuid=response["uuid"],
                     gpt4=response["gpt4"],
                     text=response["text"],
-                    code=response["code"],
                     search_focus=response["search_focus"],
                     backend_uuid=response["backend_uuid"],
                     query_str=response["query_str"],
@@ -82,8 +81,7 @@ class Perplexity:
             else:
                 self.answer.details = Details(
                     uuid=response["uuid"],
-                    text=response["text"],
-                    code=response["code"]
+                    text=response["text"]
                 )
                 self.ask_for_details = False
 
@@ -99,7 +97,7 @@ class Perplexity:
             cookie=self.get_cookies_str(),
             on_open=lambda ws: ws.send("2probe"),
             on_message=self.on_message,
-            on_error=lambda ws, err: print(err),
+            on_error=lambda ws, err: print(f"Error: {err}"),
         )
 
     def auth_session(self) -> None:
