@@ -14,6 +14,7 @@ class Perplexity:
     For now this class only support one Answer at a time.
     """
     def __init__(self) -> None:
+        self.user_agent: dict = { "User-Agent": "" }
         self.session: Session = self.init_session()
 
         self.searching = False
@@ -35,8 +36,8 @@ class Perplexity:
     def init_session(self) -> Session:
         session: Session = Session()
 
-        uuid = str(uuid4())
-        session.get(url=f"https://www.perplexity.ai/search/{uuid}")
+        uuid: str = str(uuid4())
+        session.get(url=f"https://www.perplexity.ai/search/{uuid}", headers=self.user_agent)
 
         return session
 
@@ -46,6 +47,7 @@ class Perplexity:
     def get_sid(self) -> str:
         response = loads(self.session.get(
             url=f"https://www.perplexity.ai/socket.io/?EIO=4&transport=polling&t={self.t}",
+            headers=self.user_agent
         ).text[1:])
 
         return response["sid"]
@@ -53,7 +55,8 @@ class Perplexity:
     def ask_anonymous_user(self) -> bool:
         response = self.session.post(
             url=f"https://www.perplexity.ai/socket.io/?EIO=4&transport=polling&t={self.t}&sid={self.sid}",
-            data="40{\"jwt\":\"anonymous-ask-user\"}"
+            data="40{\"jwt\":\"anonymous-ask-user\"}",
+            headers=self.user_agent
         ).text
 
         return response == "OK"
@@ -94,6 +97,7 @@ class Perplexity:
     def init_websocket(self) -> WebSocketApp:
         return WebSocketApp(
             url=f"wss://www.perplexity.ai/socket.io/?EIO=4&transport=websocket&sid={self.sid}",
+            header=self.user_agent,
             cookie=self.get_cookies_str(),
             on_open=lambda ws: ws.send("2probe"),
             on_message=self.on_message,
@@ -101,7 +105,7 @@ class Perplexity:
         )
 
     def auth_session(self) -> None:
-        self.session.get(url="https://www.perplexity.ai/api/auth/session")
+        self.session.get(url="https://www.perplexity.ai/api/auth/session", headers=self.user_agent)
 
     def search(self, query: str, search_focus: str = "internet") -> Answer:
         """A function to search for a query. You can specify the search focus between: "internet", "scholar", "news", "youtube", "reddit", "wikipedia".
