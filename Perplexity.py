@@ -153,3 +153,8 @@ class Perplexity:
         while self.ask_for_details:
             sleep(0.1)
         return self.answer
+    
+    def close(self) -> None:
+        """A function to close the websocket.
+        """
+        self.ws.close()
