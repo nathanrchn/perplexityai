@@ -14,7 +14,7 @@ class Perplexity:
     For now this class only support one Answer at a time.
     """
     def __init__(self) -> None:
-        self.user_agent: dict = { "User-Agent": "" }
+        self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
         self.session: Session = self.init_session()
 
         self.searching = False
