@@ -16,6 +16,7 @@ class Perplexity:
     def __init__(self) -> None:
         self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
         self.session: Session = self.init_session()
+        self.session.headers.update(self.user_agent)
 
         self.searching = False
         self.t: str = self.get_t()
@@ -37,7 +38,7 @@ class Perplexity:
         session: Session = Session()
 
         uuid: str = str(uuid4())
-        session.get(url=f"https://www.perplexity.ai/search/{uuid}", headers=self.user_agent)
+        session.get(url=f"https://www.perplexity.ai/search/{uuid}")
 
         return session
 
@@ -46,8 +47,7 @@ class Perplexity:
 
     def get_sid(self) -> str:
         response = loads(self.session.get(
-            url=f"https://www.perplexity.ai/socket.io/?EIO=4&transport=polling&t={self.t}",
-            headers=self.user_agent
+            url=f"https://www.perplexity.ai/socket.io/?EIO=4&transport=polling&t={self.t}"
         ).text[1:])
 
         return response["sid"]
@@ -55,8 +55,7 @@ class Perplexity:
     def ask_anonymous_user(self) -> bool:
         response = self.session.post(
             url=f"https://www.perplexity.ai/socket.io/?EIO=4&transport=polling&t={self.t}&sid={self.sid}",
-            data="40{\"jwt\":\"anonymous-ask-user\"}",
-            headers=self.user_agent
+            data="40{\"jwt\":\"anonymous-ask-user\"}"
         ).text
 
         return response == "OK"
@@ -105,7 +104,7 @@ class Perplexity:
         )
 
     def auth_session(self) -> None:
-        self.session.get(url="https://www.perplexity.ai/api/auth/session", headers=self.user_agent)
+        self.session.get(url="https://www.perplexity.ai/api/auth/session")
 
     def search(self, query: str, search_focus: str = "internet") -> Answer:
         """A function to search for a query. You can specify the search focus between: "internet", "scholar", "news", "youtube", "reddit", "wikipedia".
