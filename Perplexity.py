@@ -1,58 +1,81 @@
+from os import listdir
 from time import sleep
 from uuid import uuid4
-from requests import Session
 from threading import Thread
+from requests import Session
 from json import loads, dumps
 from random import getrandbits
+from urllib.parse import quote
 from websocket import WebSocketApp
 
-from Answer import Answer, Details
-
 class Perplexity:
-    """A class to interact with the Perplexity website.
-    To get started you need to create an instance of this class.
-    For now this class only support one Answer at a time.
-    """
-    def __init__(self) -> None:
-        self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
-        self.session: Session = self.init_session()
-        self.session.headers.update(self.user_agent)
+    def __init__(self, email: str = None) -> None:
+        if ".perplexity_session" in listdir():
+            self.session: Session = self._recover_session()
+        else:
+            self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
+            self.session: Session = self._init_session_without_login()
 
-        self.searching = False
-        self.t: str = self.get_t()
-        self.answer: Answer = None
-        self.ask_for_details = False
-        self.sid: str = self.get_sid()
-        self.frontend_uuid = str(uuid4())
-        self.frontend_session_id = str(uuid4())
+            if email:
+                self._login(email)
 
-        assert self.ask_anonymous_user(), "Failed to ask anonymous user"
+        self.t: str = self._get_t()
+        self.sid: str = self._get_sid()
+    
+        self.n: int = 1
+        self.queue: list = []
+        self.searching: bool = False
+        self.backend_uuid: str = None
+        self.frontend_uuid: str = str(uuid4())
+        self.frontend_session_id: str = str(uuid4())
+
+        assert self._ask_anonymous_user(), "failed to ask anonymous user"
         self.ws: WebSocketApp = self.init_websocket()
-        self.n = 1
         self.ws_thread: Thread = Thread(target=self.ws.run_forever).start()
-        self.auth_session()
+        self._auth_session()
 
-        sleep(1)
+        # Wait for the websocket to connect
+        while not (self.ws.sock and self.ws.sock.connected):
+            sleep(0.01)
+    
+    def _login(self, email: str) -> None:
+        self.session.post(url="https://www.perplexity.ai/api/auth/signin-email", data={"email": email})
 
-    def init_session(self) -> Session:
+        email_link: str = str(input("paste the link you received by email: "))
+        self.session.get(email_link)
+
+        with open(".perplexity_session", "w") as f:
+            f.write(dumps(self.session.cookies.get_dict()))
+
+    def _recover_session(self) -> Session:
+        session: Session = Session()
+
+        with open(".perplexity_session", "r") as f:
+            session.cookies.update(loads(f.read()))
+
+        return session
+
+    def _init_session_without_login(self) -> Session:
         session: Session = Session()
 
         uuid: str = str(uuid4())
         session.get(url=f"https://www.perplexity.ai/search/{uuid}")
+        session.headers.update(self.user_agent)
 
         return session
+    
+    def _auth_session(self) -> None:
+        self.session.get(url="https://www.perplexity.ai/api/auth/session")
 
-    def get_t(self) -> str:
+    def _get_t(self) -> str:
         return format(getrandbits(32), "08x")
 
-    def get_sid(self) -> str:
-        response = loads(self.session.get(
+    def _get_sid(self) -> str:
+        return loads(self.session.get(
             url=f"https://www.perplexity.ai/socket.io/?EIO=4&transport=polling&t={self.t}"
-        ).text[1:])
+        ).text[1:])["sid"]
 
-        return response["sid"]
-
-    def ask_anonymous_user(self) -> bool:
+    def _ask_anonymous_user(self) -> bool:
         response = self.session.post(
             url=f"https://www.perplexity.ai/socket.io/?EIO=4&transport=polling&t={self.t}&sid={self.sid}",
             data="40{\"jwt\":\"anonymous-ask-user\"}"
@@ -60,100 +83,62 @@ class Perplexity:
 
         return response == "OK"
 
-    def on_message(self, ws: WebSocketApp, message: str) -> None:
-        if message == "2":
-            ws.send("3")
-        elif message == "3probe":
-            ws.send("5")
-
-        if (self.searching or self.ask_for_details) and message.startswith(str(430 + self.n)):
-            response = loads(message[3:])[0]
-
-            if self.searching:
-                self.answer = Answer(
-                    uuid=response["uuid"],
-                    gpt4=response["gpt4"],
-                    text=response["text"],
-                    search_focus=response["search_focus"],
-                    backend_uuid=response["backend_uuid"],
-                    query_str=response["query_str"],
-                    related_queries=response["related_queries"]
-                )
-                self.searching = False
-            else:
-                self.answer.details = Details(
-                    uuid=response["uuid"],
-                    text=response["text"]
-                )
-                self.ask_for_details = False
-
-    def get_cookies_str(self) -> str:
+    def _get_cookies_str(self) -> str:
         cookies = ""
         for key, value in self.session.cookies.get_dict().items():
             cookies += f"{key}={value}; "
         return cookies[:-2]
 
     def init_websocket(self) -> WebSocketApp:
+        def on_open(ws: WebSocketApp) -> None:
+            ws.send("2probe")
+            ws.send("5")
+
+        def on_message(ws: WebSocketApp, message: str) -> None:
+            if message == "2":
+                ws.send("3")
+            elif message.startswith("42"):
+                message = loads(message[2:])
+                self.queue.append(message[1])
+                if message[0] == "query_answered":
+                    self.searching = False
+
         return WebSocketApp(
             url=f"wss://www.perplexity.ai/socket.io/?EIO=4&transport=websocket&sid={self.sid}",
             header=self.user_agent,
-            cookie=self.get_cookies_str(),
-            on_open=lambda ws: ws.send("2probe"),
-            on_message=self.on_message,
-            on_error=lambda ws, err: print(f"Error: {err}"),
+            cookie=self._get_cookies_str(),
+            on_open=on_open,
+            on_message=on_message,
+            on_error=lambda ws, err: print(f"websocket error: {err}")
         )
 
-    def auth_session(self) -> None:
-        self.session.get(url="https://www.perplexity.ai/api/auth/session")
-
-    def search(self, query: str, search_focus: str = "internet") -> Answer:
-        """A function to search for a query. You can specify the search focus between: "internet", "scholar", "news", "youtube", "reddit", "wikipedia".
-        Return the Answer object.
-        """
-        assert not self.searching, "Already searching"
-        assert search_focus in ["internet", "scholar", "news", "youtube", "reddit", "wikipedia"], "Invalid search focus"
+    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB") -> dict:
+        assert not self.searching, "already searching"
+        assert mode in ["concise", "copilot"], "invalid mode"
+        assert search_focus in ["internet", "scholar", "writing", "wolfram", "youtube", "reddit"], "invalid search focus"
         self.searching = True
         self.n += 1
         ws_message: str = f"{420 + self.n}" + dumps([
             "perplexity_ask",
             query,
             {
-                "source": "default",
-                "last_backend_uuid": None,
-                "read_write_token": "",
-                "conversational_enabled": True,
+                "version": "2.1",
+                "source": "default", # "ios"
                 "frontend_session_id": self.frontend_session_id,
+                "language": language,
+                "timezone": "CET",
+                "attachments": attachments,
                 "search_focus": search_focus,
                 "frontend_uuid": self.frontend_uuid,
-                "web_search_images": True,
-                "gpt4": False
+                "mode": mode,
+                # "use_inhouse_model": True
             }
         ])
         self.ws.send(ws_message)
-        while self.searching:
-            sleep(0.1)
-        return self.answer
 
-    def ask_detailed(self) -> Answer:
-        """A function to ask for more details about the answer.
-        Return the Answer object.
-        """
-        assert self.answer is not None, "Answer is None"
-        assert not self.searching, "Already searching"
-
-        self.ask_for_details = True
-        self.n += 1
-        ws_message: str = f"{420 + self.n}" + dumps([
-            "perplexity_ask_detailed",
-            self.answer.backend_uuid,
-            {"frontend_uuid": str(uuid4())}
-        ])
-        self.ws.send(ws_message)
-        while self.ask_for_details:
-            sleep(0.1)
-        return self.answer
+        while self.searching or len(self.queue) != 0:
+            if len(self.queue) != 0:
+                yield self.queue.pop(0)
     
     def close(self) -> None:
-        """A function to close the websocket.
-        """
         self.ws.close()
