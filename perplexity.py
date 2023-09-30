@@ -1,6 +1,6 @@
 from os import listdir
-from time import sleep
 from uuid import uuid4
+from time import sleep, time
 from threading import Thread
 from json import loads, dumps
 from random import getrandbits
@@ -113,18 +113,19 @@ class Perplexity:
         def on_message(ws: WebSocketApp, message: str) -> None:
             if message == "2":
                 ws.send("3")
-            elif message.startswith("42"):
-                message : list = loads(message[2:])
-                content: dict = message[1]
-                content.update(loads(content["text"]))
-                content.pop("text")
-                self.queue.append(content)
-                if message[0] == "query_answered":
+            elif not self.finished:
+                if message.startswith("42"):
+                    message : list = loads(message[2:])
+                    content: dict = message[1]
+                    content.update(loads(content["text"]))
+                    content.pop("text")
+                    self.queue.append(content)
+                    if message[0] == "query_answered":
+                        self.finished = True
+                elif message.startswith("43"):
+                    message: dict = loads(message[3:])[0]
+                    self.queue.append(message)
                     self.finished = True
-            elif message.startswith("43"):
-                message: dict = loads(message[3:])[0]
-                self.queue.append(message)
-                self.finished = True
 
         return WebSocketApp(
             url=f"wss://www.perplexity.ai/socket.io/?EIO=4&transport=websocket&sid={self.sid}",
@@ -135,7 +136,7 @@ class Perplexity:
             on_error=lambda ws, err: print(f"websocket error: {err}")
         )
 
-    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB") -> dict:
+    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
         assert self.finished, "already searching"
         assert mode in ["concise", "copilot"], "invalid mode"
         assert len(attachments) <= 4, "too many attachments: max 4"
@@ -160,7 +161,11 @@ class Perplexity:
         ])
         self.ws.send(ws_message)
 
+        start_time: float = time()
         while (not self.finished) or len(self.queue) != 0:
+            if timeout and time() - start_time > timeout:
+                self.finished = True
+                return {"error": "timeout"}
             if len(self.queue) != 0:
                 yield self.queue.pop(0)
 
