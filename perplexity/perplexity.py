@@ -181,7 +181,7 @@ class Perplexity:
                 self.finished = True
                 return {"error": "timeout"}
         
-        return self.queue.pop(0)
+        return self.queue.pop(-1)
 
     def upload(self, filename: str) -> str:
         assert self.finished, "already searching"
