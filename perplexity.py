@@ -33,7 +33,7 @@ class Perplexity:
         self.frontend_session_id: str = str(uuid4())
 
         assert self._ask_anonymous_user(), "failed to ask anonymous user"
-        self.ws: WebSocketApp = self.init_websocket()
+        self.ws: WebSocketApp = self._init_websocket()
         self.ws_thread: Thread = Thread(target=self.ws.run_forever).start()
         self._auth_session()
 
@@ -104,7 +104,7 @@ class Perplexity:
         with open(".perplexity_files_url", "w") as f:
             f.write(dumps(perplexity_files_url))
 
-    def init_websocket(self) -> WebSocketApp:
+    def _init_websocket(self) -> WebSocketApp:
         def on_open(ws: WebSocketApp) -> None:
             ws.send("2probe")
             ws.send("5")
@@ -118,7 +118,8 @@ class Perplexity:
                     content: dict = message[1]
                     content.update(loads(content["text"]))
                     content.pop("text")
-                    self.queue.append(content)
+                    if (not ("final" in content and content["final"])) or ("status" in content and content["status"] == "completed"):
+                        self.queue.append(content)
                     if message[0] == "query_answered":
                         self.finished = True
                 elif message.startswith("43"):
@@ -134,8 +135,8 @@ class Perplexity:
             on_message=on_message,
             on_error=lambda ws, err: print(f"websocket error: {err}")
         )
-
-    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
+    
+    def _s(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB") -> dict:
         assert self.finished, "already searching"
         assert mode in ["concise", "copilot"], "invalid mode"
         assert len(attachments) <= 4, "too many attachments: max 4"
@@ -160,6 +161,9 @@ class Perplexity:
         ])
         self.ws.send(ws_message)
 
+    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
+        self._s(query, mode, search_focus, attachments, language)
+
         start_time: float = time()
         while (not self.finished) or len(self.queue) != 0:
             if timeout and time() - start_time > timeout:
@@ -169,9 +173,15 @@ class Perplexity:
                 yield self.queue.pop(0)
 
     def search_sync(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
-        answer = [a for a in self.search(query, mode, search_focus, attachments, language, timeout)]
+        self._s(query, mode, search_focus, attachments, language)
 
-        return answer[-1]
+        start_time: float = time()
+        while not self.finished:
+            if timeout and time() - start_time > timeout:
+                self.finished = True
+                return {"error": "timeout"}
+        
+        return self.queue.pop(0)
 
     def upload(self, filename: str) -> str:
         assert self.finished, "already searching"
