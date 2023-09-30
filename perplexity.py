@@ -170,6 +170,7 @@ class Perplexity:
                 yield self.queue.pop(0)
 
     def upload(self, filename: str) -> str:
+        assert self.finished, "already searching"
         assert filename.split(".")[-1] in ["txt", "pdf"], "invalid file format"
 
         if filename.startswith("http"):
@@ -216,6 +217,26 @@ class Perplexity:
         self._write_file_url(filename, file_url)
 
         return file_url
+    
+    def threads(self, query: str = None, limit: int = None) -> list[dict]:
+        assert self.finished, "already searching"
+
+        if not limit: limit = 20
+        data: dict = {"version": "2.1", "source": "default", "limit": limit, "offset": 0}
+        if query: data["search_term"] = query
+
+        self.finished = False
+        self.n += 1
+        ws_message: str = f"{420 + self.n}" + dumps([
+            "list_ask_threads",
+            data
+        ])
+
+        self.ws.send(ws_message)
+
+        while not self.finished or len(self.queue) != 0:
+            if len(self.queue) != 0:
+                return self.queue.pop(0)
     
     def close(self) -> None:
         self.ws.close()
