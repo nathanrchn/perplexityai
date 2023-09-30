@@ -92,6 +92,18 @@ class Perplexity:
         for key, value in self.session.cookies.get_dict().items():
             cookies += f"{key}={value}; "
         return cookies[:-2]
+    
+    def _write_file_url(self, filename: str, file_url: str) -> None:
+        if ".perplexity_files_url" in listdir():
+            with open(".perplexity_files_url", "r") as f:
+                perplexity_files_url: dict = loads(f.read())
+        else:
+            perplexity_files_url: dict = {}
+
+        perplexity_files_url[filename] = file_url
+
+        with open(".perplexity_files_url", "w") as f:
+            f.write(dumps(perplexity_files_url))
 
     def init_websocket(self) -> WebSocketApp:
         def on_open(ws: WebSocketApp) -> None:
@@ -179,23 +191,24 @@ class Perplexity:
                 upload_data = self.queue.pop(0)
 
         assert not upload_data["rate_limited"], "rate limited"
-
-        files: dict = {
-            "acl": (None, upload_data["fields"]["acl"]),
-            "Content-Type": (None, upload_data["fields"]["Content-Type"]),
-            "key": (None, upload_data["fields"]["key"]),
-            "AWSAccessKeyId": (None, upload_data["fields"]["AWSAccessKeyId"]),
-            "x-amz-security-token": (None, upload_data["fields"]["x-amz-security-token"]),
-            "policy": (None, upload_data["fields"]["policy"]),
-            "signature": (None, upload_data["fields"]["signature"]),
-            "file": (filename, file)
-        }
         
-        a = post(url=upload_data["url"], files=files)
-
-        print(a.status_code)
+        post(
+            url=upload_data["url"],
+            files={
+                "acl": (None, upload_data["fields"]["acl"]),
+                "Content-Type": (None, upload_data["fields"]["Content-Type"]),
+                "key": (None, upload_data["fields"]["key"]),
+                "AWSAccessKeyId": (None, upload_data["fields"]["AWSAccessKeyId"]),
+                "x-amz-security-token": (None, upload_data["fields"]["x-amz-security-token"]),
+                "policy": (None, upload_data["fields"]["policy"]),
+                "signature": (None, upload_data["fields"]["signature"]),
+                "file": (filename, file)
+            }
+        )
 
         file_url: str = upload_data["url"] + upload_data["fields"]["key"].split("$")[0] + filename
+
+        self._write_file_url(filename, file_url)
 
         return file_url
     

@@ -1,7 +1,7 @@
 # perplexityai
 A python api to use perplexity.ai
 
-# Usage
+# Basic Usage
 You can just import the Perplexity class and use it like this:
 ```python
 from perplexity import Perplexity
@@ -13,17 +13,22 @@ for a in answer:
 perplexity.close()
 ```
 
-You can even create a cli tool with it:
+# Advanced Usage
+With the new version, you can now sign in to your account and use the api to its full potential.
+For now the only provider supported is email, but more will be added in the future.
 ```python
 from perplexity import Perplexity
 
-perplexity = Perplexity()
+perplexity = Perplexity("example@email.com")
+```
+And then you will receive an email from Perplexity AI. Copy the link associated with the `Sign in` button in the middle of the email.
+The program will create a new file: `.perplexity_session` for keeping the session cookies.
 
-while True:
-    inp = str(input("> "))
-    c = perplexity.search(inp)
-    if c:
-        print(c)
-
-perplexity.close()
+I you are logged in, you can now upload files to your account.
+```python
+perplexity.upload("path/to/file")
+```
+or
+```python
+perplexity.upload("https://example.com/file")
 ```
