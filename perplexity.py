@@ -4,7 +4,6 @@ from time import sleep, time
 from threading import Thread
 from json import loads, dumps
 from random import getrandbits
-from urllib.parse import quote
 from websocket import WebSocketApp
 from requests import Session, get, post
 
@@ -14,7 +13,7 @@ class Perplexity:
         self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
         self.session.headers.update(self.user_agent)
 
-        if ".perplexity_session" in listdir():
+        if email and ".perplexity_session" in listdir():
             self._recover_session(email)
         else:
             self._init_session_without_login()
@@ -168,6 +167,11 @@ class Perplexity:
                 return {"error": "timeout"}
             if len(self.queue) != 0:
                 yield self.queue.pop(0)
+
+    def search_sync(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
+        answer = [a for a in self.search(query, mode, search_focus, attachments, language, timeout)]
+
+        return answer[-1]
 
     def upload(self, filename: str) -> str:
         assert self.finished, "already searching"
