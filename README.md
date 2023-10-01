@@ -1,6 +1,12 @@
 # perplexityai
 A python api to use perplexity.ai
 
+# Installation
+You can install the package with pip and git:
+```bash
+pip install git+https://github.com/nathanrchn/perplexityai.git
+```
+
 # Basic Usage
 You can just import the Perplexity class and use it like this:
 ```python
