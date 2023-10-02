@@ -73,6 +73,8 @@ class Labs:
                 elif message["status"] == "completed":
                     self.finished = True
                     self.history.append({"role": "assistant", "content": message["output"], "priority": 0})
+                elif message["status"] == "failed":
+                    self.finished = True
 
         headers: dict = self.user_agent
         headers["Cookie"] = self._get_cookies_str()
