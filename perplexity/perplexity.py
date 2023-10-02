@@ -26,10 +26,11 @@ class Perplexity:
         self.sid: str = self._get_sid()
     
         self.n: int = 1
+        self.base: int = 420
         self.queue: list = []
         self.finished: bool = True
-        self.backend_uuid: str = None
-        self.frontend_uuid: str = str(uuid4())
+        self.last_uuid: str = None
+        self.backend_uuid: str = None # unused because we can't yet follow-up questions
         self.frontend_session_id: str = str(uuid4())
 
         assert self._ask_anonymous_user(), "failed to ask anonymous user"
@@ -86,6 +87,17 @@ class Perplexity:
 
         return response == "OK"
 
+    def _start_interaction(self) -> None:
+        self.finished = False
+
+        if self.n == 9:
+            self.n = 0
+            self.base *= 10
+        else:
+            self.n += 1
+
+        self.queue = []
+
     def _get_cookies_str(self) -> str:
         cookies = ""
         for key, value in self.session.cookies.get_dict().items():
@@ -121,11 +133,13 @@ class Perplexity:
                     if (not ("final" in content and content["final"])) or ("status" in content and content["status"] == "completed"):
                         self.queue.append(content)
                     if message[0] == "query_answered":
+                        self.last_uuid = content["uuid"]
                         self.finished = True
                 elif message.startswith("43"):
                     message: dict = loads(message[3:])[0]
-                    self.queue.append(message)
-                    self.finished = True
+                    if ("uuid" in message and message["uuid"] != self.last_uuid) or "uuid" not in message:
+                        self.queue.append(message)
+                        self.finished = True
 
         return WebSocketApp(
             url=f"wss://www.perplexity.ai/socket.io/?EIO=4&transport=websocket&sid={self.sid}",
@@ -141,9 +155,8 @@ class Perplexity:
         assert mode in ["concise", "copilot"], "invalid mode"
         assert len(attachments) <= 4, "too many attachments: max 4"
         assert search_focus in ["internet", "scholar", "writing", "wolfram", "youtube", "reddit"], "invalid search focus"
-        self.finished = False
-        self.n += 1
-        ws_message: str = f"{420 + self.n}" + dumps([
+        self._start_interaction()
+        ws_message: str = f"{self.base + self.n}" + dumps([
             "perplexity_ask",
             query,
             {
@@ -154,11 +167,12 @@ class Perplexity:
                 "timezone": "CET",
                 "attachments": attachments,
                 "search_focus": search_focus,
-                "frontend_uuid": self.frontend_uuid,
+                "frontend_uuid": str(uuid4()),
                 "mode": mode,
                 # "use_inhouse_model": True
             }
         ])
+
         self.ws.send(ws_message)
 
     def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
@@ -193,9 +207,8 @@ class Perplexity:
             with open(filename, "rb") as f:
                 file = f.read()
 
-        self.finished = False
-        self.n += 1
-        ws_message: str = f"{420 + self.n}" + dumps([
+        self._start_interaction()
+        ws_message: str = f"{self.base + self.n}" + dumps([
             "get_upload_url",
             {
                 "version": "2.1",
@@ -233,17 +246,38 @@ class Perplexity:
         return file_url
     
     def threads(self, query: str = None, limit: int = None) -> list[dict]:
+        assert self.email, "not logged in"
         assert self.finished, "already searching"
 
         if not limit: limit = 20
         data: dict = {"version": "2.1", "source": "default", "limit": limit, "offset": 0}
         if query: data["search_term"] = query
 
-        self.finished = False
-        self.n += 1
-        ws_message: str = f"{420 + self.n}" + dumps([
+        self._start_interaction()
+        ws_message: str = f"{self.base + self.n}" + dumps([
             "list_ask_threads",
             data
+        ])
+
+        self.ws.send(ws_message)
+
+        while not self.finished or len(self.queue) != 0:
+            if len(self.queue) != 0:
+                return self.queue.pop(0)
+            
+    def list_autosuggest(self, query: str = "", search_focus: str = "internet") -> list[dict]:
+        assert self.finished, "already searching"
+
+        self._start_interaction()
+        ws_message: str = f"{self.base + self.n}" + dumps([
+            "list_autosuggest",
+            query,
+            {
+                "has_attachment": False,
+                "search_focus": search_focus,
+                "source": "default",
+                "version": "2.1"
+            }
         ])
 
         self.ws.send(ws_message)
