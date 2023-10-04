@@ -1,4 +1,4 @@
-def return_just_next_token(answer: iter[dict]) -> str:
+def return_just_next_token(answer: [dict]) -> str:
     length = 0
     for partial_answer in answer:
         yield partial_answer["answer"][length:]
