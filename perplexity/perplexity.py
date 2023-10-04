@@ -1,3 +1,5 @@
+from typing import Iterable, Dict
+
 from os import listdir
 from uuid import uuid4
 from time import sleep, time
@@ -150,7 +152,7 @@ class Perplexity:
             on_error=lambda ws, err: print(f"websocket error: {err}")
         )
     
-    def _s(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB") -> dict:
+    def _s(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB") -> None:
         assert self.finished, "already searching"
         assert mode in ["concise", "copilot"], "invalid mode"
         assert len(attachments) <= 4, "too many attachments: max 4"
@@ -175,7 +177,7 @@ class Perplexity:
 
         self.ws.send(ws_message)
 
-    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
+    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> Iterable[Dict]:
         self._s(query, mode, search_focus, attachments, language)
 
         start_time: float = time()
