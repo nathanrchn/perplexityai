@@ -130,7 +130,10 @@ class Perplexity:
                 if message.startswith("42"):
                     message : list = loads(message[2:])
                     content: dict = message[1]
-                    content.update(loads(content["text"]))
+                    if "mode" in content and content["mode"] == "copilot":
+                        content["copilot_answer"] = loads(content["text"])
+                    elif "mode" in content:
+                        content.update(loads(content["text"]))
                     content.pop("text")
                     if (not ("final" in content and content["final"])) or ("status" in content and content["status"] == "completed"):
                         self.queue.append(content)
