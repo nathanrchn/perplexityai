@@ -8,6 +8,7 @@ from json import loads, dumps
 from random import getrandbits
 from websocket import WebSocketApp
 from requests import Session, get, post
+from .utils import get_email_link
 
 class Perplexity:
     def __init__(self, email: str = None) -> None:
@@ -55,7 +56,7 @@ class Perplexity:
     def _login(self, email: str, ps: dict = None) -> None:
         self.session.post(url="https://www.perplexity.ai/api/auth/signin-email", data={"email": email})
 
-        email_link: str = str(input("paste the link you received by email: "))
+        email_link: str = get_email_link(email)
         self.session.get(email_link)
 
         if ps:
