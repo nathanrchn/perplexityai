@@ -9,3 +9,6 @@ def return_just_next_token(answer: Iterable[Dict]) -> str:
         elif "output" in partial_answer:
             yield partial_answer["output"][length:]
             length = len(partial_answer["output"])
+
+def get_email_link(email) -> str:
+    return str(input("paste the link you received by email: "))
