@@ -8,6 +8,7 @@ from json import loads, dumps
 from random import getrandbits
 from websocket import WebSocketApp
 from requests import Session, get, post
+from .utils import get_email_link
 
 class Perplexity:
     def __init__(self, email: str = None) -> None:
@@ -23,7 +24,7 @@ class Perplexity:
             if email:
                 self._login(email)
 
-        self.email: str = email
+        email_link: str = get_email_link(email)
         self.t: str = self._get_t()
         self.sid: str = self._get_sid()
     
