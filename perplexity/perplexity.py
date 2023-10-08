@@ -180,7 +180,7 @@ class Perplexity:
 
         self.ws.send(ws_message)
 
-    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> Iterable[Dict]:
+    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = 30) -> Iterable[Dict]:
         self._s(query, mode, search_focus, attachments, language)
 
         start_time: float = time()
@@ -191,7 +191,7 @@ class Perplexity:
             if len(self.queue) != 0:
                 yield self.queue.pop(0)
 
-    def search_sync(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = None) -> dict:
+    def search_sync(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = 30) -> dict:
         self._s(query, mode, search_focus, attachments, language)
 
         start_time: float = time()
