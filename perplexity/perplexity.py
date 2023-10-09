@@ -1,4 +1,4 @@
-from typing import Iterable, Dict
+from typing import Iterable, Dict, Callable
 
 from os import listdir
 from uuid import uuid4
@@ -8,10 +8,10 @@ from json import loads, dumps
 from random import getrandbits
 from websocket import WebSocketApp
 from requests import Session, get, post
-from .utils import get_email_link
 
 class Perplexity:
-    def __init__(self, email: str = None) -> None:
+    def __init__(self, email: str = None, check_email_callback: Callable[[str], str] = None) -> None:
+        self.check_email_callback = check_email_callback
         self.session: Session = Session()
         self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
         self.session.headers.update(self.user_agent)
@@ -56,7 +56,10 @@ class Perplexity:
     def _login(self, email: str, ps: dict = None) -> None:
         self.session.post(url="https://www.perplexity.ai/api/auth/signin-email", data={"email": email})
 
-        email_link: str = get_email_link(email)
+        if self.check_email_callback:
+            email_link: str = self.check_email_callback(email)
+        else:
+            email_link: str = str(input("paste the link you received by email: "))
         self.session.get(email_link)
 
         if ps:
