@@ -155,11 +155,17 @@ class Perplexity:
             on_error=lambda ws, err: print(f"websocket error: {err}")
         )
     
-    def _s(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB") -> None:
+    def _s(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", in_page: str = None, in_domain: str = None) -> None:
         assert self.finished, "already searching"
         assert mode in ["concise", "copilot"], "invalid mode"
         assert len(attachments) <= 4, "too many attachments: max 4"
         assert search_focus in ["internet", "scholar", "writing", "wolfram", "youtube", "reddit"], "invalid search focus"
+
+        if in_page:
+            search_focus = "in_page"
+        if in_domain:
+            search_focus = "in_domain"
+
         self._start_interaction()
         ws_message: str = f"{self.base + self.n}" + dumps([
             "perplexity_ask",
@@ -175,6 +181,8 @@ class Perplexity:
                 "frontend_uuid": str(uuid4()),
                 "mode": mode,
                 # "use_inhouse_model": True
+                "in_page": in_page,
+                "in_domain": in_domain
             }
         ])
 
