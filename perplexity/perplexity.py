@@ -12,7 +12,7 @@ from requests import Session, get, post
 class Perplexity:
     def __init__(self, email: str = None) -> None:
         self.session: Session = Session()
-        self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
+        self.user_agent: dict = { "User-Agent": "Ask/2.4.1/224 (iOS; iPhone; Version 17.1) isiOSOnMac/false", "X-Client-Name": "Perplexity-iOS" }
         self.session.headers.update(self.user_agent)
 
         if email and ".perplexity_session" in listdir():
