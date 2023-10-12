@@ -11,7 +11,7 @@ class Labs:
     def __init__(self) -> None:
         self.history: list = []
         self.session: Session = Session()
-        self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false" }
+        self.user_agent: dict = { "User-Agent": "Ask/2.2.1/334 (iOS; iPhone) isiOSOnMac/false", "X-Client-Name": "Perplexity-iOS" }
         self.session.headers.update(self.user_agent)
         self._init_session_without_login()
 
