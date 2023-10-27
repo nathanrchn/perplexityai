@@ -89,12 +89,12 @@ class Labs:
     
     def _c(self, prompt: str, model: str) -> dict:
         assert self.finished, "already searching"
-        assert model in ["codellama-34b-instruct", "llama-2-7b-chat", "llama-2-13b-chat", "llama-2-70b-chat", "mistral-7b-instruct", "pplx-70b-chat"]
+        assert model in ["codellama-34b-instruct", "llama-2-13b-chat", "llama-2-70b-chat", "mistral-7b-instruct", "pplx-7b-chat-alpha", "pplx-70b-chat-alpha"]
         self.finished = False
         self.history.append({"role": "user", "content": prompt, "priority": 0})
         self.ws.send("42[\"perplexity_playground\",{\"version\":\"2.1\",\"source\":\"default\",\"model\":\"" + model + "\",\"messages\":" + dumps(self.history) + "}]")
     
-    def chat(self, prompt: str, model: str = "llama-2-7b-chat") -> dict:
+    def chat(self, prompt: str, model: str = "mistral-7b-instruct") -> dict:
         self._c(prompt, model)
 
         while (not self.finished) or (len(self.queue) != 0):
