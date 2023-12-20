@@ -1,6 +1,9 @@
 # perplexity
 .perplexity_session
 
+# tests
+test.py
+
 # macos
 .DS_Store
 
