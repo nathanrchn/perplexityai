@@ -1,5 +1,6 @@
 from typing import Iterable, Dict
 
+
 def return_just_next_token(answer: Iterable[Dict]) -> str:
     length = 0
     for partial_answer in answer:
@@ -9,3 +10,9 @@ def return_just_next_token(answer: Iterable[Dict]) -> str:
         elif "output" in partial_answer:
             yield partial_answer["output"][length:]
             length = len(partial_answer["output"])
+
+def create_mainclient():
+    if engine = 'gmail'
+    from perplexity import Perplexity
+
+    perplexity = Perplexity("

@@ -1,13 +1,13 @@
 # perplexityai
 A python api to use perplexity.ai
 
-# Installation
+## Installation
 You can install the package with pip and git:
 ```bash
 pip install git+https://github.com/nathanrchn/perplexityai.git
 ```
 
-# Basic Usage
+## Basic Usage
 You can just import the Perplexity class and use it like this:
 ```python
 from perplexity import Perplexity
@@ -19,7 +19,7 @@ for a in answer:
 perplexity.close()
 ```
 
-# Advanced Usage
+## Advanced Usage
 With the new version, you can now sign in to your account and use the api to its full potential.
 For now the only provider supported is email, but more will be added in the future.
 ```python
