@@ -102,7 +102,7 @@ class Labs:
         ]
         self.finished = False
         self.history.append({"role": "user", "content": prompt, "priority": 0})
-        self.ws.send("42[\"perplexity_playground\",{\"version\":\"2.1\",\"source\":\"default\",\"model\":\"" + model + "\",\"messages\":" + dumps(self.history) + "}]")
+        self.ws.send("42[\"perplexity_labs\",{\"version\":\"2.2\",\"source\":\"default\",\"model\":\"" + model + "\",\"messages\":" + dumps(self.history) + "}]")
     
     def chat(self, prompt: str, model: str = "mistral-7b-instruct") -> dict:
         self._c(prompt, model)
