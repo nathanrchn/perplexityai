@@ -23,11 +23,14 @@ class Labs:
 
         assert self._ask_anonymous_user(), "failed to ask anonymous user"
         self.ws: WebSocketApp = self._init_websocket()
-        self.ws_thread: Thread = Thread(target=self.ws.run_forever).start()
+        self.ws_thread: Thread = Thread(target=self._run_thread, args=(self.ws,)).start()
         self._auth_session()
 
         while not (self.ws.sock and self.ws.sock.connected):
             sleep(0.01)
+
+    def _run_thread(self, ws: WebSocketApp):
+        ws.run_forever(reconnect=1) 
 
     def _init_session_without_login(self) -> None:
         self.session.get(url=f"https://www.perplexity.ai/search/{str(uuid4())}")
