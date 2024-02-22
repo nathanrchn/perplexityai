@@ -34,6 +34,15 @@ class Perplexity:
         while not (self.ws.sock and self.ws.sock.connected):
             sleep(0.05)
 
+    def _remove_email_from_session_file(self, email: str):
+        # Logic to remove the email line from the .perplexity_session file
+        with open(".perplexity_session", "r") as file:
+            lines = file.readlines()
+        with open(".perplexity_session", "w") as file:
+            for line in lines:
+                if email not in line:
+                    file.write(line)
+
     def _initialize_session(self, email: str):
         session_recovered = False
         if email and ".perplexity_session" in listdir():
@@ -47,6 +56,7 @@ class Perplexity:
                     session_recovered = True
                 else:
                     print("Session recovered but not fully functional.")
+                    self._remove_email_from_session_file(email)
             except Exception as e:
                 print(f"Failed to recover session: {e}")
 
