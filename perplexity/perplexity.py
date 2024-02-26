@@ -56,6 +56,7 @@ class Perplexity:
                     session_recovered = True
                 else:
                     print("Session recovered but not fully functional.")
+                    self.session.cookies.clear()
                     self._remove_email_from_session_file(email)
             except Exception as e:
                 print(f"Failed to recover session: {e}")
@@ -67,6 +68,7 @@ class Perplexity:
             # Set the tokens after initializing a new session
             self.t = self._get_t()
             self.sid = self._get_sid()
+            print("Session cookies in not session_recovered:", self.session.cookies)
             # Ensure the new session is authenticated
             assert self._ask_anonymous_user(), "Session is not authenticated"
 
