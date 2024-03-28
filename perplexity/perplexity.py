@@ -155,7 +155,7 @@ class Perplexity:
             on_error=lambda ws, err: print(f"websocket error: {err}")
         )
     
-    def _s(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", in_page: str = None, in_domain: str = None) -> None:
+    def _s(self, query: str, model: str = "sonar-medium-online", mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", in_page: str = None, in_domain: str = None) -> None:
         assert self.finished, "already searching"
         assert mode in ["concise", "copilot"], "invalid mode"
         assert len(attachments) <= 4, "too many attachments: max 4"
@@ -173,6 +173,7 @@ class Perplexity:
             {
                 "version": "2.1",
                 "source": "default", # "ios"
+                "model": model,
                 "frontend_session_id": self.frontend_session_id,
                 "language": language,
                 "timezone": "CET",
@@ -188,8 +189,8 @@ class Perplexity:
 
         self.ws.send(ws_message)
 
-    def search(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = 30, in_page: str = None, in_domain: str = None) -> Iterable[Dict]:
-        self._s(query, mode, search_focus, attachments, language, in_page, in_domain)
+    def search(self, query: str, model: str = "sonar-medium-online", mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = 30, in_page: str = None, in_domain: str = None) -> Iterable[Dict]:
+        self._s(query, model, mode, search_focus, attachments, language, in_page, in_domain)
 
         start_time: float = time()
         while (not self.finished) or len(self.queue) != 0:
@@ -199,8 +200,8 @@ class Perplexity:
             if len(self.queue) != 0:
                 yield self.queue.pop(0)
 
-    def search_sync(self, query: str, mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = 30, in_page: str = None, in_domain: str = None) -> dict:
-        self._s(query, mode, search_focus, attachments, language, in_page, in_domain)
+    def search_sync(self, query: str, model: str = "sonar-medium-online", mode: str = "concise", search_focus: str = "internet", attachments: list[str] = [], language: str = "en-GB", timeout: float = 30, in_page: str = None, in_domain: str = None) -> dict:
+        self._s(query, model, mode, search_focus, attachments, language, in_page, in_domain)
 
         start_time: float = time()
         while not self.finished:
