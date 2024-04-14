@@ -10,7 +10,7 @@ from websocket import WebSocketApp
 from requests import Session, get, post
 
 class Perplexity:
-    def __init__(self, email: str = None) -> None:
+    def __init__(self, email: str = None):
         self.session: Session = Session()
         self.user_agent: dict = { "User-Agent": "Ask/2.4.1/224 (iOS; iPhone; Version 17.1) isiOSOnMac/false", "X-Client-Name": "Perplexity-iOS" }
         self.session.headers.update(self.user_agent)
@@ -35,17 +35,18 @@ class Perplexity:
         self.backend_uuid: str = None # unused because we can't yet follow-up questions
         self.frontend_session_id: str = str(uuid4())
 
-        assert self._ask_anonymous_user(), "failed to ask anonymous user"
+        self._ask_anonymous_user()
         self.ws: WebSocketApp = self._init_websocket()
         self.ws_thread: Thread = Thread(target=self.ws.run_forever).start()
         self._auth_session()
 
         while not (self.ws.sock and self.ws.sock.connected):
             sleep(0.01)
+        
 
     def _recover_session(self, email: str) -> None:
         with open(".perplexity_session", "r") as f:
-            perplexity_session: dict = loads(f.read())
+            perplexity_session: dict = json.load(f)
 
         if email in perplexity_session:
             self.session.cookies.update(perplexity_session[email])
