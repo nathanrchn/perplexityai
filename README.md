@@ -38,3 +38,6 @@ or
 ```python
 perplexity.upload("https://example.com/file")
 ```
+
+# Labs
+There are three classes to use the labs.perplexity.ai service.
