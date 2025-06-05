@@ -11,5 +11,9 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/nathanrchn/perplexityai",
     packages=find_packages(),
-    requires=["requests", "websocket-client"]
+    install_requires=[
+        "requests",
+        "websocket-client"
+    ],
+    python_requires=">=3.6"
 )
