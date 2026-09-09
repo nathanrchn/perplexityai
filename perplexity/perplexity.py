@@ -1,32 +1,34 @@
 from typing import Iterable, Dict
 
+from urllib.parse import quote
 from os import listdir
+from pathlib import Path
+from re import sub
 from uuid import uuid4
 from time import sleep, time
 from threading import Thread
-from json import loads, dumps
+from json import loads, dumps, JSONDecodeError
 from random import getrandbits
 from websocket import WebSocketApp
 from requests import Session, get, post
+from requests.exceptions import RequestException
+from .config import config_dir, mail_config_for, retrieve_login_url_from_mail
 
 class Perplexity:
     def __init__(self, email: str = None) -> None:
-        self.session: Session = Session()
         self.user_agent: dict = { "User-Agent": "Ask/2.9.1/2406 (iOS; iPhone; Version 17.1) isiOSOnMac/false", "X-Client-Name": "Perplexity-iOS", "X-App-ApiClient": "ios" }
-        self.session.headers.update(self.user_agent)
+        self.email: str = email
+        self._reset_session()
 
-        if email and ".perplexity_session" in listdir():
-            self._recover_session(email)
-        else:
+        recovered_session = False
+        if email and self._token_path(email).exists():
+            recovered_session = self._recover_session(email)
+        if not recovered_session:
             self._init_session_without_login()
 
             if email:
                 self._login(email)
 
-        self.email: str = email
-        self.t: str = self._get_t()
-        self.sid: str = self._get_sid()
-    
         self.n: int = 1
         self.base: int = 420
         self.queue: list = []
@@ -35,7 +37,16 @@ class Perplexity:
         self.backend_uuid: str = None # unused because we can't yet follow-up questions
         self.frontend_session_id: str = str(uuid4())
 
-        assert self._ask_anonymous_user(), "failed to ask anonymous user"
+        if not self._bootstrap_socket_session():
+            if email and recovered_session:
+                self._reset_session()
+                self._init_session_without_login()
+                self._login(email)
+                if not self._bootstrap_socket_session():
+                    raise RuntimeError("failed to initialize websocket session after re-login")
+            else:
+                raise RuntimeError("failed to initialize websocket session")
+
         self.ws: WebSocketApp = self._init_websocket()
         self.ws_thread: Thread = Thread(target=self.ws.run_forever).start()
         self._auth_session()
@@ -43,28 +54,56 @@ class Perplexity:
         while not (self.ws.sock and self.ws.sock.connected):
             sleep(0.01)
 
-    def _recover_session(self, email: str) -> None:
-        with open(".perplexity_session", "r") as f:
-            perplexity_session: dict = loads(f.read())
+    def _token_path(self, email: str) -> Path:
+        safe = sub(r"[^a-zA-Z0-9-]", "_", email)
+        return config_dir() / f"{safe}.token"
 
-        if email in perplexity_session:
-            self.session.cookies.update(perplexity_session[email])
-        else:
-            self._login(email, perplexity_session)
-    
+    def _reset_session(self) -> None:
+        self.session: Session = Session()
+        self.session.headers.update(self.user_agent)
+
+    def _recover_session(self, email: str) -> bool:
+        try:
+            cookies = loads(self._token_path(email).read_text())
+        except (OSError, JSONDecodeError):
+            return False
+        self.session.cookies.update(cookies)
+        return True
+
+    def _bootstrap_socket_session(self) -> bool:
+        try:
+            self.t = self._get_t()
+            self.sid = self._get_sid()
+            return self._ask_anonymous_user()
+        except (IndexError, KeyError, JSONDecodeError, RequestException):
+            return False
+
+
     def _login(self, email: str, ps: dict = None) -> None:
         self.session.post(url="https://www.perplexity.ai/api/auth/signin-email", data={"email": email})
 
-        email_link: str = str(input("paste the link you received by email: "))
+        import sys
+        email_link = None
+        mail_config = mail_config_for(email)
+        if mail_config:
+            sys.stderr.write("Retrieving Perplexity login token from email...\n")
+            sys.stderr.flush()
+            try:
+                email_link = retrieve_login_url_from_mail(email, mail_config)
+            except Exception as exc:
+                sys.stderr.write(f"Failed to retrieve token from email: {exc}\n")
+                sys.stderr.flush()
+        if not email_link:
+            sys.stderr.write("Token (or link) received via email: ")
+            sys.stderr.flush()
+            email_input: str = sys.stdin.readline().strip()
+            if email_input.startswith("http"):
+                email_link = email_input
+            else:
+                email_link = f"https://www.perplexity.ai/api/auth/callback/email?callbackUrl=defaultMobileSignIn&email={quote(email)}&token={email_input}"
         self.session.get(email_link)
 
-        if ps:
-            ps[email] = self.session.cookies.get_dict()
-        else:
-            ps = {email: self.session.cookies.get_dict()}
-
-        with open(".perplexity_session", "w") as f:
-            f.write(dumps(ps))
+        self._token_path(email).write_text(dumps(self.session.cookies.get_dict()))
 
     def _init_session_without_login(self) -> None:
         self.session.get(url=f"https://www.perplexity.ai/search/{str(uuid4())}")
@@ -130,11 +169,12 @@ class Perplexity:
                 if message.startswith("42"):
                     message : list = loads(message[2:])
                     content: dict = message[1]
-                    if "mode" in content and content["mode"] == "copilot":
-                        content["copilot_answer"] = loads(content["text"])
-                    elif "mode" in content:
-                        content.update(loads(content["text"]))
-                    content.pop("text")
+                    if "text" in content:
+                        if "mode" in content and content["mode"] == "copilot":
+                            content["copilot_answer"] = loads(content["text"])
+                        elif "mode" in content:
+                            content.update(loads(content["text"]))
+                        content.pop("text", None)
                     if (not ("final" in content and content["final"])) or ("status" in content and content["status"] == "completed"):
                         self.queue.append(content)
                     if message[0] == "query_answered":
@@ -303,10 +343,4 @@ class Perplexity:
         self.ws.close()
 
         if self.email:
-            with open(".perplexity_session", "r") as f:
-                perplexity_session: dict = loads(f.read())
-
-            perplexity_session[self.email] = self.session.cookies.get_dict()
-
-            with open(".perplexity_session", "w") as f:
-                f.write(dumps(perplexity_session))
+            self._token_path(self.email).write_text(dumps(self.session.cookies.get_dict()))

@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
+import sys
+
+from perplexity.cli import main
+
+
+raise SystemExit(main(sys.argv))
